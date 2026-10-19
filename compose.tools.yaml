@@ -1,0 +1,69 @@
+# Standalone, disposable build/test tools. No application credentials required.
+# No dependency or build-output directories are mounted into the host project.
+name: origrami-tools
+
+services:
+  setup:
+    image: python:3.13-alpine
+    entrypoint: ["python", "-B", "/opt/origrami/container-setup.py"]
+    read_only: true
+    volumes:
+      - .:/workspace
+      - ./scripts/container-setup.py:/opt/origrami/container-setup.py:ro
+    network_mode: none
+
+  web-build:
+    build:
+      context: ./web
+      target: build
+      args:
+        VITE_MATRIX_URL: ${VITE_MATRIX_URL:-http://localhost:8008}
+    command: ["node", "-e", "require('node:fs').accessSync('dist/index.html'); console.log('Web build ready inside the image; no host output created.')"]
+    network_mode: none
+
+  web-tests:
+    build:
+      context: ./web
+      target: tooling
+    command: ["npm", "test"]
+    network_mode: none
+
+  management-tests:
+    build:
+      context: ./management
+      target: test
+    network_mode: none
+
+  bootstrap-tests:
+    build:
+      context: ./infrastructure/synapse
+      target: tooling
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid
+    network_mode: none
+
+  web-dev:
+    build:
+      context: ./web
+      target: tooling
+    command: ["npm", "run", "dev", "--", "--host", "0.0.0.0", "--port", "5173", "--strictPort"]
+    environment:
+      MANAGEMENT_PROXY_URL: http://management:8090
+      VITE_MATRIX_URL: ${VITE_MATRIX_URL:-http://localhost:8008}
+      # Polling also detects bind-mount changes reliably on Docker Desktop.
+      CHOKIDAR_USEPOLLING: "true"
+    volumes:
+      - ./web/src:/app/src:ro
+      - ./web/public:/app/public:ro
+      - ./web/index.html:/app/index.html:ro
+      - ./web/vite.config.js:/app/vite.config.js:ro
+    ports:
+      - "127.0.0.1:5174:5173"
+    networks:
+      - application
+
+networks:
+  application:
+    external: true
+    name: ${ORIGRAMI_RUNTIME_NETWORK:-origrami_frontend}

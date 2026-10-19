@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title desc">
+  <title id="title">Origrami</title>
+  <desc id="desc">Original symbol of an envelope folded from several paper surfaces</desc>
+  <rect width="128" height="128" rx="30" fill="#612437"/>
+  <g transform="translate(14 14)">
+    <path d="M10 31 50 13 90 31 50 66 10 31Z" fill="#f1e7e9"/>
+    <path d="M10 31v43l40 17V66L10 31Z" fill="#c9b9bc"/>
+    <path d="M90 31v43L50 91V66l40-35Z" fill="#e5d9dc"/>
+    <path d="m10 74 40-33 40 33-40 17-40-17Z" fill="#fff8f7"/>
+    <path d="m10 31 40 35 40-35M50 41v25" stroke="#803b4f" stroke-width="2" stroke-linejoin="round" fill="none"/>
+  </g>
+</svg>

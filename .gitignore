@@ -1,0 +1,47 @@
+# Installed dependencies and generated builds
+node_modules/
+dist/
+build/
+coverage/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Local configuration and secrets (only the example belongs in Git)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.signing.key
+service-password
+
+# Runtime data, databases, logs and backups
+.synapse/
+management-state/
+postgres-data/
+synapse-config/
+synapse-media/
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+*.sqlite-*
+*.sqlite3-*
+*.log
+backups/
+*.bak
+*.dump
+
+# Editor, OS and temporary files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/
+*.swp
+*.swo
+*.tmp
+.tmp*/

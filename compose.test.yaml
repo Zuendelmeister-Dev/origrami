@@ -1,0 +1,26 @@
+# Local test overlay. First run the setup container from compose.tools.yaml, then:
+# docker compose -f compose.yaml -f compose.test.yaml up --build -d --wait
+# Uses the same local services and volumes as compose.yaml. Never use publicly.
+services:
+  test-users:
+    image: matrixdotorg/synapse:v1.163.0
+    user: "991:991"
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        register_new_matrix_user --user alice --password alice --no-admin --exists-ok --config /data/homeserver.yaml http://synapse:8008
+        register_new_matrix_user --user bob --password bob --no-admin --exists-ok --config /data/homeserver.yaml http://synapse:8008
+        echo 'Test users ready: alice/alice and bob/bob. Existing accounts/passwords are unchanged.'
+    volumes:
+      - synapse-config:/data:ro
+    depends_on:
+      synapse:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: "no"
+
+  web:
+    depends_on:
+      test-users:
+        condition: service_completed_successfully

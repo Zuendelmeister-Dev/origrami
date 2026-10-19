@@ -1,0 +1,132 @@
+name: origrami
+
+# LOCAL DEVELOPMENT ONLY: host ports are bound to 127.0.0.1.
+# Local chat services and a private management API with persistent policy state.
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: synapse
+      POSTGRES_DB: synapse
+      POSTGRES_PASSWORD: ${ORIGRAMI_DB_PASSWORD:?Run docker compose -f compose.tools.yaml run --rm setup first}
+      POSTGRES_INITDB_ARGS: '--encoding=UTF8 --locale=C'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U synapse -d synapse"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    restart: unless-stopped
+
+  synapse-init:
+    build:
+      context: ./infrastructure/synapse
+      target: runtime
+    user: "0:0"
+    environment:
+      SYNAPSE_SERVER_NAME: localhost
+      SYNAPSE_REPORT_STATS: "no"
+      ORIGRAMI_DB_PASSWORD: ${ORIGRAMI_DB_PASSWORD:?Missing DB password}
+    volumes:
+      - synapse-config:/data
+      - synapse-media:/data/media_store
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: "no"
+
+  synapse:
+    image: matrixdotorg/synapse:v1.163.0
+    environment:
+      SYNAPSE_CONFIG_PATH: /data/homeserver.yaml
+    volumes:
+      - synapse-config:/data
+      - synapse-media:/data/media_store
+    ports:
+      - "127.0.0.1:8008:8008"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      synapse-init:
+        condition: service_completed_successfully
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8008/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+
+  management-init:
+    image: matrixdotorg/synapse:v1.163.0
+    user: "0:0"
+    entrypoint: ["python", "-c", "import os; os.chown('/state', 991, 991); os.chmod('/state', 0o700)"]
+    volumes:
+      - management-state:/state
+    network_mode: none
+    restart: "no"
+
+  management:
+    build:
+      context: ./management
+      target: runtime
+    user: "991:991"
+    environment:
+      SYNAPSE_URL: http://synapse:8008
+      # Set this to complete, existing local Matrix IDs in .env.
+      # Test setup designates alice; the role does not grant native Matrix admin.
+      ORIGRAMI_SUPERUSERS: ${ORIGRAMI_SUPERUSERS:-@alice:localhost}
+      ORIGRAMI_ALLOWED_ORIGINS: ${ORIGRAMI_ALLOWED_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174}
+    volumes:
+      - management-state:/state
+      - synapse-config:/data:ro
+    ports:
+      - "127.0.0.1:8090:8090" # Local Vite development proxy
+    depends_on:
+      synapse:
+        condition: service_healthy
+      management-init:
+        condition: service_completed_successfully
+    networks:
+      - backend
+      - frontend
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8090/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  web:
+    build:
+      context: ./web
+      target: runtime
+      args:
+        VITE_MATRIX_URL: http://localhost:8008
+    ports:
+      - "127.0.0.1:5173:80"
+    depends_on:
+      synapse:
+        condition: service_healthy
+      management:
+        condition: service_healthy
+    networks:
+      - frontend
+    restart: unless-stopped
+
+networks:
+  frontend: {}
+  backend: {}
+
+volumes:
+  postgres-data: {}  # Database records and Matrix event metadata
+  synapse-config: {} # Homeserver configuration and signing keys
+  synapse-media: {}  # Uploaded files; private media requires encryption by the uploading client
+  management-state: {} # Roles, requests, blocklist, audit and private service credential
