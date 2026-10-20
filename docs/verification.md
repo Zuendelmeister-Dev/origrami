@@ -1,125 +1,61 @@
-# Verification report
+# Verification
 
-This report records the scope, results and limitations of project checks. Historical results are not a current security certification.
+## Automated checks — 2026-10-20
 
-## Container workflow — 2026-10-19
-
-- Built the dedicated web build/test, management test and bootstrap test targets successfully.
-- All 51 existing tests passed inside the new disposable containers: 21 web, 16 management and 14 bootstrap tests.
-- Verified setup on a temporary container filesystem: a new credential is generated with mode 0600 and an existing file is preserved. Running the Compose setup against existing local configuration also preserved it.
-- Started the packaged web, management and bootstrap runtime images in a separate instance with disposable volumes and different host ports. Healthchecks and Nginx configuration passed; the live registration/roles check passed again.
-- Verified the containerised development page, transformed source, internal management proxy and source-watcher updates. Source mounts are read-only; Vite cache remains in the container.
-- Confirmed that the host project contains no `web/node_modules` or `web/dist` directories after builds, tests and live development.
-
-The checks used a separate test project and did not reset or replace the existing application installation. Images and build cache still require Docker-managed disk space. Large Matrix SDK/WASM bundles remain a known build warning.
-
-## Documentation checks — 2026-10-19
-
-Validation found 70 valid local file/image references, including heading anchors. All 14 existing bootstrap tests passed again in an isolated, read-only Synapse container without access to application data. No application deployment or data reset was needed for these checks.
-
-## Management features — 2026-10-19
-
-This implementation added a roles/admission backend, account-request interface and admin/superuser dashboard. Direct Matrix registration remains closed; Origrami approval is a separate workflow.
-
-| Check | Result and limitation |
+| Check | Result |
 |---|---|
-| Existing web tests | 21 passed |
-| Backend tests (`python -B -m unittest discover -s management -v`) | 16 passed: roles, superuser/system-account protection, immediate demotion, load permissions, metadata allowlist, absent content endpoints, search/bulk decisions, blocklist, throttling, persistence and safe activation |
-| Production build in Docker | Passed with 1,900 transformed modules; large SDK/WASM artifacts remain a known build warning |
-| Nginx (`nginx -t`) | Passed with the API proxy |
-| Compose | Base/test combination validated; Synapse, PostgreSQL, seeding and management started in the separate `origrami-admin-check` project |
-| Live check against Synapse | Request, search, approval, activation and display name verified; promotion without native Matrix admin access; superuser protection; metrics grant/revocation; demotion; deactivation with token revocation; blocklist |
-| Browser with the built image | Alice sign-in, superuser indicator, actual metrics, protected account actions, submitting a request, name search and returning to connected chat checked |
+| Web client | 31 tests passed, including ten group-chat regressions |
+| Account management | 16 tests passed |
+| Synapse bootstrap | 14 tests passed |
+| Production web build | Passed; large Matrix SDK/WASM bundles remain a known build warning |
+| Compose base/test and tooling definitions | Validated successfully |
+| PowerShell helper scripts | All three parsed without errors |
+| Documentation | All local file, image and heading references resolve |
 
-Live checks used newly created test volumes and disposable accounts only. A [dashboard preview](../brand/origrami-admin-preview.png) was saved. Local Windows Vite builds stalled during transformation and were stopped; the full Linux Docker build succeeded. Backend unit tests require no additional local Python packages.
+All 61 tests and the production build ran in disposable containers. No dependency trees or generated web builds were written into the project directory.
 
-Still outstanding: independent security review, public TLS operation, larger bot/load scenarios, coordinated management/Synapse restoration, complete mobile testing and previously documented E2EE/multi-device limitations. CPU/memory describe the Docker Linux environment; disk describes the management filesystem. API role tests do not protect against infrastructure operators or native Matrix administrator credentials. See [administration](administration.md).
+The web suite checks encrypted sending, room creation, group-name retention, recipient validation and deduplication, event rendering, sign-out, browser locks and session storage. Backend tests cover registration, approval, roles, superuser protection, blocklists, throttling and persistence. Bootstrap tests cover configuration, credentials, private temporary files and preservation of existing databases, keys and media.
 
-## Follow-up review — 2026-10-19
+## Group-chat browser check — 2026-10-20
 
-The web client, server bootstrap and helper scripts were reviewed again. `compose.test.yaml` adds a one-time `test-users` service that creates `alice/alice` and `bob/bob` without native administrator privileges after a healthy Synapse check. The web client waits for successful seeding. Existing accounts remain unchanged; missing accounts are created even when the other test account exists. Manual seed scripts also use `--exists-ok`.
+A separate Compose instance with disposable accounts and volumes was checked using three isolated Chrome browser contexts. The packaged production web client and real Synapse cryptography were used.
 
-| Check | Recorded result and limitation |
-|---|---|
-| Web tests (`node --test src/*.test.js`, equivalent to `npm test`) | 21 passed, no failures |
-| Base Compose and test combination (`config --quiet`) | Passed with a temporary validation password; no `.env` created |
-| Resolved configuration | Healthcheck dependencies, seeding dependency, read-only configuration volume and test accounts checked |
-| PowerShell scripts | All three parsed without errors |
-| Web build during this phase | Stopped during transformation without further output; no successful new build established in this phase |
-| Container startup, real registration and repeated seeding | Not performed in this phase: Docker Desktop/Linux engine unavailable |
-| Bootstrap tests | Not repeated in this phase: Docker unavailable and local PyYAML missing |
+- Duplicate invitees and self-invitation were rejected before room creation; valid duplicate IDs produced only one invitation each.
+- Alice created a named group; Bob and Charlie received and accepted invitations.
+- Each participant sent a message that all three clients could read. All three outgoing message events used `m.room.encrypted`.
+- Unicode, emoji and literal HTML text remained readable, and messages remained readable after reloading the same session and reopening the group.
+- The dialog and conversation were checked at desktop and 390 px mobile widths, with both colour palettes. No browser exceptions occurred.
+- All three sessions signed out successfully at the server.
 
-Support for `--exists-ok` and preservation of existing accounts were checked in the [official source for the pinned Synapse version](https://github.com/element-hq/synapse/blob/v1.163.0/synapse/_scripts/register_new_matrix_user.py). Container execution and the complete encrypted exchange were still outstanding at that point; later results are recorded separately. Existing server data was not changed.
+This verifies the tested three-user workflow. It does not establish device verification, recovery or support for every browser and device.
 
-## Earlier review — 2026-10-18
+## Run the checks
 
-| Item | Recorded scope |
-|---|---|
-| Date | 2026-10-18 |
-| Subject | Implementation after another code/documentation review, subsequently recorded as Origrami 0.1 |
-| Environment | Windows/PowerShell, Node.js 24, npm 11, Docker Desktop with a Linux engine |
-| Release decision | Local development prototype; no public or security-critical approval |
-
-The review covered the web client, SDK integration, bootstrap, Compose, scripts and documentation. The supplied source directory had no Git repository or commit ID. Findings apply to that working state and are neither certification nor an independent penetration test.
-
-Recording version 0.1 did not repeat the earlier checks. Subsequent observations are documented in the [manual test log](manual-tests.md).
-
-### Results
-
-| Check | Result | Limitation |
-|---|---|---|
-| `npm test` | 20 passed in this earlier phase | Unit/regression tests, not complete cryptographic or multi-device verification |
-| `npm run build` | Passed | Large SDK/WASM artifacts; optimisation outstanding |
-| `npm audit --json` | No known warnings on that check date | Advisory snapshot only; no container or whole-system assessment |
-| Synapse bootstrap | 14 passed in an isolated container | Temporary test files; no restoration of a real installation |
-| `docker compose config --quiet` | Passed with a validation password | Structural check, not startup of all newly configured services |
-| Separate Docker web build | Passed, including `npm ci` and Nginx 1.30.6 | Existing web deployment not replaced |
-| `nginx -t` in the built image | Passed | Syntax only; no public TLS deployment |
-| PowerShell scripts | No parser errors | Destructive reset not executed |
-| Local browser | Sign-in, sync, reload, dialog and sign-out checked | No message sending, media or device-identity attack test in this phase |
-| Responsive sign-in | Checked at 360 px and 1280 px | Not a complete device/browser compatibility assessment |
-| Documentation | Local references and naming checked | External pages may change later |
-
-Existing services and volumes were not reset or reprovisioned. Browser checks used the documented local test account and ended with server sign-out. A [historical version 0.1 preview](../brand/origrami-v0.1-preview.png) records that phase.
-
-### Corrected findings
-
-| Finding | Change and evidence |
-|---|---|
-| Concurrent SDK clients could corrupt one crypto store | Exclusive Web Lock per server/account/device; contention, release and missing-API tests |
-| Saved tokens were not server-bound | Validated session format v2 with exact server binding; old formats not adopted automatically |
-| Failed sign-out stopped the client before contacting the server | Revoke first, then stop; failure/retry and invalid-token tests |
-| Expired sessions stayed active in the UI | Handle SDK `Session.logged_out` and clear the local session |
-| Room encryption was confused with encryption of every message | Label received plaintext events; distinguish encrypted and unsent local events |
-| Invalid message bodies could crash React | Type checking and safe fallback text; regression using an actual SDK event |
-| Participants and senders were insufficiently visible | Participant list/count and full sender IDs |
-| Failed local echoes remained beside retries | Cancel only the matching failed echo by transaction ID, including generic network/crypto failures; preserve the draft |
-| A custom existing SQLite path could be overlooked | Reject existing non-PostgreSQL configurations before migration |
-| Custom media paths could be silently overwritten | Stop with migration guidance before changes; data-preservation tests |
-| Temporary configuration could expose secrets through permissive file modes | Exclusive temporary file with mode 0600, atomic replacement and failure cleanup |
-| Outdated webserver image and unclear reset guidance | Update Nginx, validate Compose before reset, prioritise preservation of existing data |
-
-## Run the tests
-
-From the project root, use disposable containers:
+From the project root:
 
 ```sh
 docker compose -f compose.tools.yaml run --rm --build web-tests
 docker compose -f compose.tools.yaml run --rm --build management-tests
 docker compose -f compose.tools.yaml run --rm --build bootstrap-tests
 docker compose -f compose.tools.yaml run --rm --build web-build
+docker compose -f compose.yaml -f compose.test.yaml config --quiet
 ```
 
-The web suite covers sending safeguards, initial encryption, user IDs, event rendering, sign-out, tab locks and session persistence. Management tests cover admission and roles; bootstrap tests cover configuration and data preservation. Images supply all dependencies. No host runtime installation, application credentials or host dependency directories are needed.
+The tools file supplies dependencies without application credentials or application-data mounts. The bootstrap test container has a read-only root filesystem and temporary scratch storage. See the [build guide](builds.md).
 
-The bootstrap test container has no network or application-data mounts, a read-only root filesystem and a temporary `/tmp`. The tools never reset application volumes. See the [container build guide](builds.md) for details. Earlier commands in historical results describe how those earlier checks were performed, not the recommended host workflow.
+## Earlier integration checks
 
-## Outstanding evidence and product limitations
+Earlier two-user checks covered encrypted exchange, Unicode and literal HTML handling, invitations, drafts, reload and sign-out. A read-only storage check found three encrypted message events with ciphertext and no plaintext body in that test conversation. The [browser test checklist](manual-tests.md) describes how to repeat the current workflows.
 
-The earlier infrastructure review did not establish a complete encrypted two-user exchange, extra devices, verified identities, resistance to a malicious homeserver, key backup/transfer, or whole-system offline/retry behaviour. Later text-chat observations appear in the [manual tests](manual-tests.md). Automatic retries cannot universally exclude duplicate delivery.
+Integration checks on 2026-10-19 covered account requests, search, approval, activation, display names, promotion without native Matrix administrator access, superuser protection, metrics permissions, demotion, deactivation with token revocation and the registration blocklist. Packaged runtime images, healthchecks, Nginx configuration and the containerised development proxy were also checked.
 
-Media sending is not implemented, so secure media transmission has not been demonstrated. Container security analysis, full browser hardening, load tests, backup restoration and public HTTPS operation remain outstanding.
+These dated observations are evidence for those workflows, not a security certification.
 
-**Central unresolved issue:** the goal that administration cannot read private content is not yet met against an actively malicious operator. Verified devices, an appropriate trust policy and trustworthy client distribution are missing. See the [release criteria](../SECURITY.md#release-criteria).
+## Outstanding checks and limitations
 
-Technical references: [SDK concurrency warning](https://github.com/matrix-org/matrix-js-sdk), [Matrix E2EE and attachments](https://spec.matrix.org/latest/client-server-api/#end-to-end-encryption), [official Nginx image versions](https://github.com/docker-library/official-images/blob/master/library/nginx).
+- Device verification, resistance to substituted devices and trustworthy client distribution require implementation and independent review.
+- Key backup, transfer and recovery are not available. A new sign-in creates a new Matrix device; server backups do not recover private device keys.
+- Media sending, older-history pagination and comprehensive offline/retry behaviour remain incomplete. A failed send does not always prove non-delivery.
+- Public HTTPS operation, container hardening, larger load tests, full mobile/browser coverage and coordinated restoration of Synapse and management data need further validation.
+
+The client does not yet provide complete protection against an actively malicious infrastructure operator or modified client code. See the [security model and release criteria](../SECURITY.md#release-criteria).

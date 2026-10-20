@@ -10,7 +10,8 @@ services:
       - |
         register_new_matrix_user --user alice --password alice --no-admin --exists-ok --config /data/homeserver.yaml http://synapse:8008
         register_new_matrix_user --user bob --password bob --no-admin --exists-ok --config /data/homeserver.yaml http://synapse:8008
-        echo 'Test users ready: alice/alice and bob/bob. Existing accounts/passwords are unchanged.'
+        register_new_matrix_user --user charlie --password charlie --no-admin --exists-ok --config /data/homeserver.yaml http://synapse:8008
+        echo 'Test users ready: alice/alice, bob/bob and charlie/charlie. Existing accounts/passwords are unchanged.'
     volumes:
       - synapse-config:/data:ro
     depends_on:

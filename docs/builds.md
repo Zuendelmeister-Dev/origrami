@@ -62,7 +62,7 @@ docker compose -f compose.tools.yaml run --rm --build management-tests
 docker compose -f compose.tools.yaml run --rm --build bootstrap-tests
 ```
 
-`--build` refreshes each image from the current source. `--rm` removes the container when the command exits. A failed test returns a nonzero exit code. Existing suites cover 21 web tests, 16 management tests and 14 bootstrap tests.
+`--build` refreshes each image from the current source. `--rm` removes the container when the command exits. A failed test returns a nonzero exit code. The suites cover the web client, account management and Synapse configuration; current results are recorded in [verification](verification.md).
 
 The build command keeps compiled files at `/app/dist` in its image. It does not export them to the host. The web runtime build copies these files directly between image stages. Test containers have no runtime network access and no application-data mounts; bootstrap tests write only to a temporary in-container filesystem. Package/image downloads happen during the image build, before tests run.
 

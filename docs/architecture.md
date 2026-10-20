@@ -89,6 +89,7 @@ Encrypted communication is not anonymous. Content protection and metadata exposu
 - Sign-in to a fixed homeserver with direct public registration disabled.
 - Account requests approved by admins before activation.
 - Private rooms with end-to-end encryption enabled in their initial state.
+- Named group chats with multiple invitations and history restricted to joined members.
 - Text sending blocked in unencrypted rooms.
 - Local crypto stores separated by homeserver, account and device.
 - Server-bound sessions and exclusive browser locks on each device's crypto store; a second tab using the same store is rejected.

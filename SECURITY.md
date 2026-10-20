@@ -56,7 +56,7 @@ Before a strong security claim or public release, implement and independently ve
 5. **Operations:** HTTPS, restrictive browser policies, protected administration, safe admission, secret rotation, updates and tested recovery.
 6. **Evidence:** two-user and multi-device tests including substituted devices, token expiry, offline operation, key loss and media; an external security review.
 
-The [verification report](docs/verification.md) records previous checks. [Manual version 0.1 tests](docs/manual-tests.md) are documented separately. Passing tests or a clean dependency advisory report is not proof of overall system security.
+The [verification report](docs/verification.md) records dated test results. The [browser test checklist](docs/manual-tests.md) describes reproducible workflows. Passing tests or a clean dependency advisory report is not proof of overall system security.
 
 ## Reporting security issues
 

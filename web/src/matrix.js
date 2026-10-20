@@ -104,6 +104,28 @@ export async function createEncryptedChat(client, target) {
   return response.room_id;
 }
 
+export async function createEncryptedGroup(client, name, recipients) {
+  const groupName = name.trim();
+  if (!groupName || groupName.length > 100) throw new Error('Please enter a group name of 1 to 100 characters.');
+  const ownUserId = client.getUserId();
+  const invite = [...new Set(recipients.split(/[,;\n]/).map((value) => value.trim()).filter(Boolean)
+    .map((value) => normalizeUserId(value, ownUserId)))];
+  if (invite.includes(ownUserId)) throw new Error('You are already included in the group. Please invite other people.');
+  if (invite.length < 2) throw new Error('Please invite at least two different people to the group.');
+  const response = await client.createRoom({
+    preset: sdk.Preset.PrivateChat,
+    visibility: 'private',
+    is_direct: false,
+    name: groupName,
+    invite,
+    initial_state: [
+      { type: 'm.room.encryption', state_key: '', content: { algorithm: 'm.megolm.v1.aes-sha2' } },
+      { type: 'm.room.history_visibility', state_key: '', content: { history_visibility: 'joined' } },
+    ],
+  });
+  return response.room_id;
+}
+
 export async function sendEncryptedText(client, roomId, text) {
   const room = client.getRoom(roomId);
   const crypto = client.getCrypto();
@@ -126,6 +148,8 @@ export function isEncryptedRoom(room) {
 }
 
 export function getDisplayName(room, userId) {
+  const explicitName = room.currentState.getStateEvents('m.room.name', '')?.getContent()?.name;
+  if (typeof explicitName === 'string' && explicitName.trim()) return explicitName;
   const members = room.getMembers().filter((member) => ['join', 'invite'].includes(member.membership));
   if (members.length > 2) return typeof room.name === 'string' ? room.name : 'Group conversation';
   const member = members.find((m) => m.userId !== userId);
@@ -141,6 +165,8 @@ export function readRooms(client) {
       name: getDisplayName(room, client.getUserId()),
       membership: room.getMyMembership(),
       encrypted: isEncryptedRoom(room),
+      isGroup: Boolean(room.currentState.getStateEvents('m.room.name', '')?.getContent()?.name)
+        || room.getMembers().filter((member) => ['join', 'invite'].includes(member.membership)).length > 2,
       members: room.getMembers().filter((member) => ['join', 'invite'].includes(member.membership)).map((member) => member.userId),
       room,
     }))

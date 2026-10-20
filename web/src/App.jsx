@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft, ArrowRight, Check, ChevronDown, CircleHelp, Feather, LockKeyhole,
-  LogOut, MessageCircle, Moon, Plus, Send, ShieldCheck, Sun, X,
+  LogOut, MessageCircle, Moon, Plus, Send, ShieldCheck, Sun, Users, X,
 } from 'lucide-react';
 import BrandMark from './BrandMark.jsx';
 import AdminPanel from './AdminPanel.jsx';
@@ -9,7 +9,7 @@ import Registration from './Registration.jsx';
 import { managementRequest } from './management-api.js';
 import { version as APP_VERSION } from '../package.json';
 import {
-  MATRIX_URL, createEncryptedChat, forgetSession, loadSession, loginMatrix,
+  MATRIX_URL, createEncryptedChat, createEncryptedGroup, forgetSession, loadSession, loginMatrix,
   readMessages, readRooms, saveSession, startMatrix, sendEncryptedText, endMatrixSession,
 } from './matrix.js';
 
@@ -111,8 +111,8 @@ function NoChat({ startChat }) {
   );
 }
 
-function Avatar({ name, large = false }) {
-  return <span className={`avatar ${large ? 'avatar-large' : ''}`} aria-hidden="true">{(name || '?').slice(0, 1).toUpperCase()}</span>;
+function Avatar({ name, large = false, group = false }) {
+  return <span className={`avatar ${large ? 'avatar-large' : ''}`} aria-hidden="true">{group ? <Users size={21} /> : (name || '?').slice(0, 1).toUpperCase()}</span>;
 }
 
 function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) {
@@ -123,6 +123,10 @@ function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) 
   const setDraft = (value) => setDrafts((previous) => ({ ...previous, [selectedId]: value }));
   const [syncState, setSyncState] = useState(client.getSyncState());
   const [recipient, setRecipient] = useState('');
+  const [conversationType, setConversationType] = useState('direct');
+  const [groupName, setGroupName] = useState('');
+  const [groupRecipients, setGroupRecipients] = useState('');
+  const [createError, setCreateError] = useState('');
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
   const [busyCreate, setBusyCreate] = useState(false);
@@ -136,7 +140,7 @@ function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) 
   const endRef = useRef(null);
   const openerRef = useRef(null);
   const pendingRoomRef = useRef(null);
-  const openCreate = (event) => { openerRef.current = event?.currentTarget; setCreating(true); setError(''); };
+  const openCreate = (event) => { openerRef.current = event?.currentTarget; setCreating(true); setCreateError(''); };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -180,7 +184,7 @@ function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) 
     const keydown = (event) => {
       if (event.key === 'Escape' && !busyCreateRef.current) setCreating(false);
       if (event.key !== 'Tab' || !dialog) return;
-      const items = [...dialog.querySelectorAll('button:not(:disabled), input:not(:disabled)')];
+      const items = [...dialog.querySelectorAll('button:not(:disabled), input:not(:disabled), textarea:not(:disabled)')];
       const first = items[0], last = items.at(-1);
       if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
       if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -191,15 +195,19 @@ function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) 
 
   async function create(event) {
     event.preventDefault();
-    if (!recipient.trim() || busyCreate) return;
-    setBusyCreate(true); setError('');
+    if (busyCreateRef.current || loggingOut) return;
+    busyCreateRef.current = true;
+    setBusyCreate(true); setCreateError('');
     try {
-      const roomId = await createEncryptedChat(client, recipient);
+      const roomId = conversationType === 'group'
+        ? await createEncryptedGroup(client, groupName, groupRecipients)
+        : await createEncryptedChat(client, recipient);
       pendingRoomRef.current = roomId;
       setRooms(readRooms(client));
-      setCreating(false); setRecipient(''); setSelectedId(roomId); setMobileChatOpen(true);
-    } catch (e) { setError(friendlyError(e)); }
-    finally { setBusyCreate(false); }
+      setCreating(false); setRecipient(''); setGroupName(''); setGroupRecipients('');
+      setSelectedId(roomId); setMobileChatOpen(true);
+    } catch (e) { setCreateError(friendlyError(e)); }
+    finally { busyCreateRef.current = false; setBusyCreate(false); }
   }
 
   async function send(event) {
@@ -227,7 +235,7 @@ function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) 
 
   return (
     <div className="app-frame">
-      <div className={`sidebar ${mobileChatOpen ? 'mobile-hidden' : ''}`}>
+      <div className={`sidebar ${mobileChatOpen ? 'mobile-hidden' : ''}`} inert={creating}>
         <div className="sidebar-header"><Brand compact /><div className="top-icons"><ThemeToggle theme={theme} onChange={setTheme}/><button type="button" className="icon-button" title="Sign out" disabled={loggingOut} onClick={onLogout}><LogOut size={18}/></button></div></div>
         <div className="user-card"><Avatar name={shortUser(session.userId)}/><div><strong>{shortUser(session.userId)}</strong><span>{managementIdentity?.role === 'superuser' ? 'Superuser · Your private space' : managementIdentity?.role === 'admin' ? 'Admin · Your private space' : 'Your private space'}</span></div><span className={`online-indicator ${['SYNCING', 'PREPARED'].includes(syncState) ? '' : 'offline'}`} title={['SYNCING', 'PREPARED'].includes(syncState) ? 'Connected' : 'Connecting'}/></div>
         {['admin', 'superuser'].includes(managementIdentity?.role) && <button type="button" className="management-entry" onClick={() => setManagementOpen(true)}><ShieldCheck size={17} /> Server management <ArrowRight size={16} /></button>}
@@ -236,8 +244,8 @@ function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) 
         <div className="sync-status" role="status">{['SYNCING', 'PREPARED'].includes(syncState) ? 'Connected to the homeserver' : 'Disconnected or connecting …'}</div><div className="room-list">
           {filteredRooms.length === 0 ? <div className="empty-list"><MessageCircle size={25}/><span>{rooms.length ? 'No matching chats.' : 'Your conversations will appear here.'}</span></div> : filteredRooms.map((room) => (
             <button type="button" key={room.roomId} className={`room-item ${room.roomId === selectedId ? 'selected' : ''}`} onClick={() => { setSelectedId(room.roomId); setMobileChatOpen(true); setError(''); }}>
-              <Avatar name={room.name}/>
-              <span className="room-label"><strong>{room.name}</strong><small>{room.membership === 'invite' ? 'Invitation received' : room.encrypted ? 'Encrypted conversation' : 'Not encrypted'}</small></span>
+              <Avatar name={room.name} group={room.isGroup}/>
+              <span className="room-label"><strong>{room.name}</strong><small>{room.membership === 'invite' ? 'Invitation received' : room.encrypted ? (room.isGroup ? 'Encrypted group' : 'Encrypted conversation') : 'Not encrypted'}</small></span>
               {room.encrypted && <LockKeyhole size={14} className="room-lock"/>}
             </button>
           ))}
@@ -245,11 +253,11 @@ function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) 
         <div className="sidebar-bottom"><span className="privacy-check"><ShieldCheck size={16}/> Self-hosted prototype</span><span>Signing in again creates a new device. Older messages may remain unreadable without key recovery.</span><span>Origrami {APP_VERSION} · Powered by Matrix</span></div>
       </div>
 
-      <main className={`conversation ${!mobileChatOpen ? 'mobile-hidden' : ''}`}>
+      <main className={`conversation ${!mobileChatOpen ? 'mobile-hidden' : ''}`} inert={creating}>
         {!selected ? <NoChat startChat={openCreate}/> : <>
           <div className="conversation-header">
             <button className="icon-button mobile-back" type="button" onClick={() => setMobileChatOpen(false)} aria-label="Back to chats"><ArrowLeft size={21}/></button>
-            <Avatar name={selected.name}/>
+            <Avatar name={selected.name} group={selected.isGroup}/>
             <div className="conversation-heading"><strong>{selected.name}</strong><span>{selected.encrypted ? <><LockKeyhole size={13}/> Encrypted · Devices not verified</> : 'Not encrypted'} · {selected.members.length} members</span></div>
             <span className="encryption-chip"><ShieldCheck size={15}/> {selected.encrypted ? 'ENCRYPTED' : 'UNPROTECTED'}</span>
           </div>
@@ -273,7 +281,33 @@ function ChatScreen({ session, client, onLogout, loggingOut, theme, setTheme }) 
         </>}
       </main>
 
-      {creating && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !busyCreate) setCreating(false); }}><div className="modal" role="dialog" aria-modal="true" aria-labelledby="new-chat-title"><button className="modal-close icon-button" type="button" aria-label="Close" disabled={busyCreate} onClick={() => setCreating(false)}><X size={19}/></button><div className="modal-symbol"><BrandMark size={58}/></div><div className="eyebrow">A NEW CONVERSATION</div><h2 id="new-chat-title">Reach out to someone.</h2><p>Enter the username of someone on your local Matrix server.</p><form onSubmit={create}><label htmlFor="recipient">Username or Matrix ID</label><input id="recipient" autoFocus placeholder="e.g. bob" value={recipient} onChange={(e) => setRecipient(e.target.value)} required />{error && <div className="error-note" role="alert">{error}</div>}<button disabled={busyCreate} className="primary-button" type="submit">{busyCreate ? 'Creating chat …' : 'Start private chat'} <ArrowRight size={17}/></button></form></div></div>}
+      {creating && <div className="modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget && !busyCreate) setCreating(false); }}>
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="new-chat-title" aria-busy={busyCreate}>
+          <button className="modal-close icon-button" type="button" aria-label="Close" disabled={busyCreate} onClick={() => setCreating(false)}><X size={19}/></button>
+          <div className="modal-symbol"><BrandMark size={58}/></div><div className="eyebrow">A NEW CONVERSATION</div>
+          <h2 id="new-chat-title">{conversationType === 'group' ? 'Bring your people together.' : 'Reach out to someone.'}</h2>
+          <fieldset className="conversation-type" disabled={busyCreate}>
+            <legend>Conversation type</legend>
+            <button type="button" aria-pressed={conversationType === 'direct'} onClick={() => { setConversationType('direct'); setCreateError(''); }}><MessageCircle size={16}/> Private chat</button>
+            <button type="button" aria-pressed={conversationType === 'group'} onClick={() => { setConversationType('group'); setCreateError(''); }}><Users size={16}/> Group chat</button>
+          </fieldset>
+          <form onSubmit={create}>
+            {conversationType === 'group' ? <>
+              <label htmlFor="group-name">Group name</label>
+              <input id="group-name" autoFocus maxLength={100} placeholder="e.g. Weekend plans" value={groupName} onChange={(e) => setGroupName(e.target.value)} disabled={busyCreate} required />
+              <label htmlFor="group-recipients">Usernames or Matrix IDs</label>
+              <textarea id="group-recipients" rows={3} placeholder={'bob, charlie\n@dana:localhost'} value={groupRecipients} onChange={(e) => setGroupRecipients(e.target.value)} aria-describedby="group-hint" disabled={busyCreate} required />
+              <p id="group-hint" className="group-hint">Invite at least two other people. Separate names with commas, semicolons or new lines. You are included automatically. Invitees must join before receiving messages. The group name and membership are visible to the server.</p>
+            </> : <>
+              <p>Enter the username of someone on your local Matrix server.</p>
+              <label htmlFor="recipient">Username or Matrix ID</label>
+              <input id="recipient" autoFocus placeholder="e.g. bob" value={recipient} onChange={(e) => setRecipient(e.target.value)} disabled={busyCreate} required />
+            </>}
+            {createError && <div className="error-note" role="alert">{createError}</div>}
+            <button disabled={busyCreate || loggingOut} className="primary-button" type="submit">{busyCreate ? 'Creating chat …' : conversationType === 'group' ? 'Create encrypted group' : 'Start private chat'} <ArrowRight size={17}/></button>
+          </form>
+        </div>
+      </div>}
     </div>
   );
 }

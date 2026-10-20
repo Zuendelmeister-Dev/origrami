@@ -58,6 +58,17 @@ Drafts survive switching conversations within the current view. They are not dur
 
 ![Encrypted test conversation between Alice and Bob](images/encrypted-chat.png)
 
+## Start a group chat
+
+1. Choose **New conversation** (the plus button), then **Group chat**.
+2. Enter a group name and at least two other usernames or complete Matrix IDs. Separate recipients with commas, semicolons or new lines. You are included automatically; repeated IDs receive only one invitation.
+3. Choose **Create encrypted group**. Each invited person selects the conversation and chooses **Accept invitation**.
+4. Once participants have joined, exchange text messages as in a private chat. The group icon and name appear in the sidebar; **Show conversation members** lists joined and invited accounts.
+
+Groups are private, invitation-only rooms with encryption enabled from creation. Message history is restricted to joined members: send shared messages after invitees accept. Group names and membership are room metadata visible to the server. Device verification and key recovery have the same limitations as private chats.
+
+Renaming groups, inviting additional members after creation, removing members and leaving through the Origrami interface are not implemented yet.
+
 ## Understand chat notices
 
 | Notice | Meaning and next step |
@@ -85,7 +96,7 @@ Choose the sign-out icon in the sidebar. Once successful, Origrami revokes the s
 
 Closing a tab is not confirmed server sign-out. Tokens are stored in tab session storage and may become unavailable after closing; crypto data is stored separately in IndexedDB. Browsers may restore closed tabs or sessions.
 
-**Signing in again creates a new Matrix device.** Its crypto store does not automatically contain the previous device's keys. Old messages may remain unreadable after successful sign-in. Origrami currently has no key transfer, export or recovery workflow. This behaviour is recorded in the [manual tests](manual-tests.md).
+**Signing in again creates a new Matrix device.** Its crypto store does not automatically contain the previous device's keys. Old messages may remain unreadable after successful sign-in. Origrami currently has no key transfer, export or recovery workflow. See the [session and key checks](manual-tests.md#sessions-and-keys).
 
 Do not delete site data or an existing browser profile as a general repair step. Server backups do not recover device-only keys, and administrators cannot replace them by resetting an account password.
 
