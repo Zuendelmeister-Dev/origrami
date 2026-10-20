@@ -11,7 +11,7 @@ The goal is to encrypt private content on participants' devices and decrypt it o
 ## What can Origrami do?
 
 - Run a self-hosted, closed Matrix instance using Synapse and PostgreSQL.
-- Exchange end-to-end encrypted text messages with invitations, search and conversation drafts.
+- Exchange end-to-end encrypted text messages in private and named group chats with invitations, search and conversation drafts.
 - Review account requests: an administrator must approve a request before its account can be activated.
 - Manage searchable requests, individual and bulk decisions, users, a blocklist and an activity log.
 - Protect superuser accounts and restrict CPU, memory and disk statistics to superusers unless they grant administrators access.
@@ -43,7 +43,7 @@ docker info --format '{{.OSType}}'
 
 The last command should print `linux`. See [operations](docs/operations.md#requirements) and the [container build guide](docs/builds.md).
 
-## Quick start with two test accounts
+## Quick start with three test accounts
 
 Complete the [prerequisites](#prerequisites), then run all commands from the project directory.
 
@@ -69,10 +69,13 @@ Open **[localhost:5173](http://localhost:5173)**:
 |---|---|---|
 | `alice` | `alice` | Superuser |
 | `bob` | `bob` | User |
+| `charlie` | `charlie` | User |
 
-Alice can open **Server management**. Bob starts as a normal user and can be promoted to administrator by Alice. Use separate browser profiles for Alice and Bob. These published passwords are for local testing only. Neither account has native Matrix administrator privileges.
+Alice can open **Server management**. Bob and Charlie start as normal users and can be promoted to administrator by Alice. Use a separate browser profile for each account. These published passwords are for local testing only. None of these accounts has native Matrix administrator privileges.
 
 To try a chat, sign in as Alice and invite Bob using **New conversation**. Sign in as Bob, choose **Accept invitation**, and send a text message.
+
+To try a group, choose **Group chat** in the new-conversation dialog, enter a group name and invite `bob, charlie`. Open each account in a separate browser profile, accept both invitations, then exchange messages. See the [group chat guide](docs/usage.md#start-a-group-chat).
 
 **Stop and restart:**
 
@@ -143,8 +146,7 @@ These screenshots show local test accounts and sample data. The administration g
 | Protection and outstanding requirements | [Security model](SECURITY.md) |
 | Changes | [Changelog](CHANGELOG.md) |
 | Planned platforms, integrations and features | [Roadmap](docs/roadmap.md) |
-| Automated checks and manual observations | [Verification report](docs/verification.md), [manual tests](docs/manual-tests.md) |
-| What belongs in Git? | [Repository notes](docs/repository.md) |
+| Test results and browser test checklist | [Verification report](docs/verification.md), [manual tests](docs/manual-tests.md) |
 
 ## Development
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- Create named, invitation-only encrypted group chats with multiple recipients.
+- Validate and deduplicate invitees before room creation; restrict group history to joined members.
+- Show group icons and preserve group names while invitations are pending or members leave.
+- Keep creation errors inside the dialog and disable background interaction while it is open.
+- Add Charlie as a third disposable local account for trying group conversations.
+
 ## 0.1.0
 
 Initial prototype of Origrami, a self-hosted messenger.

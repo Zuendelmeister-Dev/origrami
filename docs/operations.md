@@ -63,7 +63,7 @@ The setup container creates `.env` with a random PostgreSQL password if necessar
 
 **Expected result:** PostgreSQL, Synapse and management are healthy, the one-time jobs have exited successfully, and [localhost:5173](http://localhost:5173) is available. The [Matrix versions endpoint](http://localhost:8008/_matrix/client/versions) returns JSON.
 
-The `test-users` job waits for healthy Synapse and creates both accounts without native admin privileges. The web service waits for seeding and management. The overlay shares the base services and volumes; it is not a separate installation.
+The `test-users` job waits for healthy Synapse and creates all three accounts without native admin privileges. The web service waits for seeding and management. The overlay shares the base services and volumes; it is not a separate installation.
 
 ## Local test accounts
 
@@ -71,6 +71,7 @@ The `test-users` job waits for healthy Synapse and creates both accounts without
 |---|---|---|---|---|
 | alice | alice | `@alice:localhost` | Superuser by default | No |
 | bob | bob | `@bob:localhost` | User | No |
+| charlie | charlie | `@charlie:localhost` | User | No |
 
 These passwords are for local testing only. Repeated seeding skips existing accounts and creates missing ones without changing passwords or permissions. Existing accounts retain their original credentials. Other errors stop seeding; rerun after resolving the cause.
 

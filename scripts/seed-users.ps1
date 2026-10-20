@@ -1,9 +1,9 @@
-# Seeds two disposable Matrix test users on a running local Synapse instance.
+# Seeds three disposable Matrix test users on a running local Synapse instance.
 # Credentials are intentionally weak. NEVER use these on a public server.
 $ErrorActionPreference = 'Stop'
 Set-Location (Split-Path -Parent $PSScriptRoot)
 
-foreach ($user in @('alice', 'bob')) {
+foreach ($user in @('alice', 'bob', 'charlie')) {
     Write-Host "Creating local test user: $user" -ForegroundColor Yellow
     & docker compose exec -T synapse register_new_matrix_user `
         --user $user `
@@ -16,4 +16,4 @@ foreach ($user in @('alice', 'bob')) {
         throw "Could not create '$user'. Inspect the server and preserve existing data; reset only disposable test installations."
     }
 }
-Write-Host 'Ready: alice/alice and bob/bob (Matrix IDs @alice:localhost, @bob:localhost). Existing accounts/passwords are unchanged.' -ForegroundColor Green
+Write-Host 'Ready: alice/alice, bob/bob and charlie/charlie (local Matrix IDs). Existing accounts/passwords are unchanged.' -ForegroundColor Green
